@@ -65,7 +65,7 @@ func main() {
 	}
 }
 
-func decode(sr jup.SwapResponse) ([]solana.Transaction, error) {
+func decode(sr *jup.SwapResponse) ([]solana.Transaction, error) {
 	sertxs := [3]string{
 		sr.SetupTransaction,
 		sr.SwapTransaction,

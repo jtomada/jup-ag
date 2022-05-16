@@ -56,28 +56,28 @@ type Fee struct {
 
 const swapUrl = "https://quote-api.jup.ag/v1/swap"
 
-func GetSwapTransactions(swap *SwapRequest) (resp SwapResponse, err error) {
+func GetSwapTransactions(swap *SwapRequest) (*SwapResponse, error) {
 	// Get the serialized transaction(s) from Jupiter's Swap API
-	var swapJson bytes.Buffer
-	err = json.NewEncoder(&swapJson).Encode(&swap)
+	var jsonBody bytes.Buffer
+	err := json.NewEncoder(&jsonBody).Encode(&swap)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	r, err := http.Post(swapUrl, "application/json", &swapJson)
+	r, err := http.Post(swapUrl, "application/json", &jsonBody)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer r.Body.Close()
 
-	sr := SwapResponse{}
-	err = json.NewDecoder(r.Body).Decode(&sr)
+	s := &SwapResponse{}
+	err = json.NewDecoder(r.Body).Decode(s)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	fmt.Printf("%+v\n", sr)
+	fmt.Printf("%+v\n", *s)
 
-	return sr, nil
+	return s, nil
 }
 
 type QuoteRequest struct {
@@ -89,10 +89,10 @@ type QuoteRequest struct {
 	OnlyDirectRoutes bool
 }
 
-func GetQuote(qr *QuoteRequest) (q Quote, err error) {
+func GetQuote(qr *QuoteRequest) (*Quote, error) {
 	quoteUrl, err := url.Parse("https://quote-api.jup.ag")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	quoteUrl.Path += "/v1/quote"
@@ -118,18 +118,18 @@ func GetQuote(qr *QuoteRequest) (q Quote, err error) {
 	quoteUrl.RawQuery = params.Encode()
 	fmt.Printf("Encoded URL is %q\n", quoteUrl.String())
 
-	resp, err := http.Get(quoteUrl.String())
+	r, err := http.Get(quoteUrl.String())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer resp.Body.Close()
+	defer r.Body.Close()
 
-	quote := Quote{}
-	err = json.NewDecoder(resp.Body).Decode(&quote)
+	quote := &Quote{}
+	err = json.NewDecoder(r.Body).Decode(quote)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	fmt.Printf("%+v\n", quote)
+	fmt.Printf("%+v\n", *quote)
 
 	return quote, nil
 }
