@@ -97,7 +97,7 @@ func GetQuote(qr *QuoteRequest) (q Quote, err error) {
 
 	quoteUrl.Path += "/v1/quote"
 
-	amountLamports := qr.Amount * 1000000
+	amountLamports := qr.Amount * 1000000000
 	a := fmt.Sprintf("%f", amountLamports)
 	s := fmt.Sprintf("%f", qr.Slippage)
 	f := fmt.Sprintf("%f", qr.FeeBps)
