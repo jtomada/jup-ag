@@ -1,4 +1,4 @@
-package main
+package jup
 
 import (
 	"bytes"
@@ -54,15 +54,42 @@ type Fee struct {
 	Pct    float64 `json:"pct"`
 }
 
-var mintAddressMainnet = map[string]string{
-	"SOL":  "So11111111111111111111111111111111111111112",
-	"USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+const swapUrl = "https://quote-api.jup.ag/v1/swap"
+
+func GetSwapTransactions(swap *SwapRequest) (resp SwapResponse, err error) {
+	// Get the serialized transaction(s) from Jupiter's Swap API
+	var swapJson bytes.Buffer
+	err = json.NewEncoder(&swapJson).Encode(&swap)
+	if err != nil {
+		panic(err)
+	}
+
+	r, err := http.Post(swapUrl, "application/json", &swapJson)
+	if err != nil {
+		panic(err)
+	}
+	defer r.Body.Close()
+
+	sr := SwapResponse{}
+	err = json.NewDecoder(r.Body).Decode(&sr)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%+v\n", sr)
+
+	return sr, nil
 }
 
-func main() {
-	fmt.Println("Hello Jupiter!")
+type QuoteRequest struct {
+	InputMint        string
+	OutputMint       string
+	Amount           float64
+	Slippage         float64
+	FeeBps           float64
+	OnlyDirectRoutes bool
+}
 
-	// Get the best routes from Jupiter's Swap API
+func GetQuote(qr *QuoteRequest) (q Quote, err error) {
 	quoteUrl, err := url.Parse("https://quote-api.jup.ag")
 	if err != nil {
 		panic(err)
@@ -70,11 +97,24 @@ func main() {
 
 	quoteUrl.Path += "/v1/quote"
 
+	amountLamports := qr.Amount * 1000000
+	a := fmt.Sprintf("%f", amountLamports)
+	s := fmt.Sprintf("%f", qr.Slippage)
+	f := fmt.Sprintf("%f", qr.FeeBps)
+
 	params := url.Values{}
-	params.Add("inputMint", mintAddressMainnet["SOL"])
-	params.Add("outputMint", mintAddressMainnet["USDC"])
-	params.Add("amount", "1000")
-	params.Add("slippage", "0.5")
+	params.Add("inputMint", qr.InputMint)
+	params.Add("outputMint", qr.OutputMint)
+	params.Add("amount", a)
+	params.Add("slippage", s)
+	params.Add("feeBps", f)
+
+	if qr.OnlyDirectRoutes {
+		params.Add("onlyDirectRoutes", "true")
+	} else {
+		params.Add("onlyDirectRoutes", "false")
+	}
+
 	quoteUrl.RawQuery = params.Encode()
 	fmt.Printf("Encoded URL is %q\n", quoteUrl.String())
 
@@ -91,29 +131,5 @@ func main() {
 	}
 	fmt.Printf("%+v\n", quote)
 
-	// Get the serialized transaction(s) from Jupiter's Swap API
-	swapUrl := "https://quote-api.jup.ag/v1/swap"
-
-	swapReq := SwapRequest{}
-	swapReq.Route = quote.Routes[0]
-	swapReq.UserPublicKey = wallet.PublicKey().String()
-
-	var swapJsonBody bytes.Buffer
-	err = json.NewEncoder(&swapJsonBody).Encode(&swapReq)
-	if err != nil {
-		panic(err)
-	}
-
-	resp, err = http.Post(swapUrl, "application/json", &swapJsonBody)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	swapResp := SwapResponse{}
-	err = json.NewDecoder(resp.Body).Decode(&swapResp)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("%+v\n", swapResp)
+	return quote, nil
 }
