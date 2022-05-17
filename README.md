@@ -2,4 +2,6 @@
 Go client for Jupiter's Swap API
 
 ## Examples
-`go run examples/main.go`
+```
+go run examples/main.go
+```
