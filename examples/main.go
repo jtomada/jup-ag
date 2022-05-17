@@ -36,6 +36,20 @@ func main() {
 
 	fmt.Println("wallet public key:", wallet.PublicKey().String())
 
+	_, err = jup.GetIndexedRouteMap(false)
+	if err != nil {
+		panic(err)
+	}
+
+	pr := jup.PriceRequest{}
+	pr.InputMint = mintAddressMainnet["SOL"]
+	pr.OutputMint = mintAddressMainnet["USDC"]
+	pr.Amount = 0.00001
+	_, err = jup.GetPrice(&pr)
+	if err != nil {
+		panic(err)
+	}
+
 	qr := jup.QuoteRequest{}
 	qr.InputMint = mintAddressMainnet["SOL"]
 	qr.OutputMint = mintAddressMainnet["USDC"]

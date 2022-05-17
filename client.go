@@ -54,7 +54,11 @@ type Fee struct {
 	Pct    float64 `json:"pct"`
 }
 
-const swapUrl = "https://quote-api.jup.ag/v1/swap"
+const swapUrl = "/v1/swap"
+const quoteUrl = "/v1/quote"
+const priceUrl = "/v1/price"
+const mapUrl = "v1/indexed-route-map"
+const baseUrl = "https://quote-api.jup.ag"
 
 func GetSwapTransactions(swap *SwapRequest) (*SwapResponse, error) {
 	// Get the serialized transaction(s) from Jupiter's Swap API
@@ -64,7 +68,9 @@ func GetSwapTransactions(swap *SwapRequest) (*SwapResponse, error) {
 		return nil, err
 	}
 
-	r, err := http.Post(swapUrl, "application/json", &jsonBody)
+	url := baseUrl + swapUrl
+
+	r, err := http.Post(url, "application/json", &jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +96,12 @@ type QuoteRequest struct {
 }
 
 func GetQuote(qr *QuoteRequest) (*Quote, error) {
-	quoteUrl, err := url.Parse("https://quote-api.jup.ag")
+	qurl, err := url.Parse(baseUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	quoteUrl.Path += "/v1/quote"
+	qurl.Path += quoteUrl
 
 	amountLamports := qr.Amount * 1000000000
 	a := fmt.Sprintf("%f", amountLamports)
@@ -115,10 +121,10 @@ func GetQuote(qr *QuoteRequest) (*Quote, error) {
 		params.Add("onlyDirectRoutes", "false")
 	}
 
-	quoteUrl.RawQuery = params.Encode()
-	fmt.Printf("Encoded URL is %q\n", quoteUrl.String())
+	qurl.RawQuery = params.Encode()
+	fmt.Printf("Encoded URL is %q\n", qurl.String())
 
-	r, err := http.Get(quoteUrl.String())
+	r, err := http.Get(qurl.String())
 	if err != nil {
 		return nil, err
 	}
@@ -132,4 +138,95 @@ func GetQuote(qr *QuoteRequest) (*Quote, error) {
 	fmt.Printf("%+v\n", *quote)
 
 	return quote, nil
+}
+
+type IndexedRouteMapResponse struct {
+	MintKeys        []string         `json:"mintKeys"`
+	IndexedRouteMap map[string][]int `json:"indexedRouteMap"`
+}
+
+func GetIndexedRouteMap(onlyDirectRoutes bool) (*IndexedRouteMapResponse, error) {
+	murl, err := url.Parse(baseUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	murl.Path += mapUrl
+
+	params := url.Values{}
+	if onlyDirectRoutes {
+		params.Add("onlyDirectRoutes", "true")
+	} else {
+		params.Add("onlyDirectRoutes", "false")
+	}
+
+	r, err := http.Get(murl.String())
+	if err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	imap := &IndexedRouteMapResponse{}
+	err = json.NewDecoder(r.Body).Decode(imap)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("len route map: %d\n", len(imap.IndexedRouteMap))
+
+	return imap, nil
+}
+
+type Price struct {
+	Data      PriceData `json:"data"`
+	TimeTaken float64   `json:"timeTaken"`
+}
+
+type PriceData struct {
+	InputMint    string  `json:"inputMint"`
+	InputSymbol  string  `json:"inputSymbol"`
+	OutputMint   string  `json:"outputMint"`
+	OutputSymbol string  `json:"outputSymbol"`
+	Amount       int     `json:"amount"`
+	Price        float64 `json:"price"`
+}
+
+type PriceRequest struct {
+	InputMint  string
+	OutputMint string
+	Amount     float64
+}
+
+func GetPrice(p *PriceRequest) (*Price, error) {
+	purl, err := url.Parse(baseUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	purl.Path += priceUrl
+
+	amountLamports := p.Amount * 1000000000
+	a := fmt.Sprintf("%f", amountLamports)
+
+	params := url.Values{}
+	params.Add("inputMint", p.InputMint)
+	params.Add("outputMint", p.OutputMint)
+	params.Add("amount", a)
+
+	purl.RawQuery = params.Encode()
+	fmt.Printf("Encoded URL is %q\n", purl.String())
+
+	r, err := http.Get(purl.String())
+	if err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	price := &Price{}
+	err = json.NewDecoder(r.Body).Decode(price)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%+v\n", *price)
+
+	return price, nil
 }
